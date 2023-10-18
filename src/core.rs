@@ -10,7 +10,7 @@ pub fn in_tmux() -> bool {
 pub fn open(path: &PathBuf) -> Result<()> {
     let session_name = session_name(path);
 
-    let session_exists = Tmux::with_command(HasSession::new().target_session(session_name))
+    let session_exists = Tmux::with_command(HasSession::new().target_session(&session_name))
         .output()?
         .status()
         .success();
@@ -21,9 +21,9 @@ pub fn open(path: &PathBuf) -> Result<()> {
 
     // Attach to session
     if in_tmux() {
-        Tmux::with_command(SwitchClient::new().target_session(session_name)).output()?;
+        Tmux::with_command(SwitchClient::new().target_session(&session_name)).output()?;
     } else {
-        Tmux::with_command(AttachSession::new().target_session(session_name)).output()?;
+        Tmux::with_command(AttachSession::new().target_session(&session_name)).output()?;
     }
 
     Ok(())
@@ -37,7 +37,7 @@ fn create_session(path: &PathBuf) -> Result<()> {
     let cmd = Tmux::new()
         .add_command(
             NewSession::new()
-                .session_name(session_name)
+                .session_name(&session_name)
                 .shell_command("zsh -c nvim")
                 .detached(),
         )
@@ -50,9 +50,15 @@ fn create_session(path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn session_name(path: &PathBuf) -> &str {
+fn session_name(path: &PathBuf) -> String {
     path.file_name()
         .map(|s| s.to_str())
         .flatten()
-        .unwrap_or("unnamed")
+        .map(|s| {
+            s.to_string()
+                .replace(" ", "_")
+                .replace(",", "_")
+                .replace(".", "_")
+        })
+        .unwrap_or("unnamed".to_owned())
 }
