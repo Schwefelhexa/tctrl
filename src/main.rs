@@ -1,5 +1,7 @@
 mod core;
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
@@ -14,6 +16,8 @@ struct Args {
 enum TCtrlCommand {
     #[command(about = "Prints true or false to stdout.")]
     InTmux,
+    #[command(about = "Opens a project, using a provided path.")]
+    Open { path: PathBuf },
 }
 
 fn main() -> Result<()> {
@@ -31,7 +35,11 @@ impl TCtrlCommand {
                 let in_tmux = core::in_tmux();
                 println!("{}", in_tmux);
                 Ok(())
-            }
+            },
+            TCtrlCommand::Open { path } => {
+                core::open(path)?;
+                Ok(())
+            },
         }
     }
 }
