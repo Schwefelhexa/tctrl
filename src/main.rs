@@ -1,9 +1,11 @@
 mod core;
 
-use std::path::PathBuf;
+use std::{fs, io::Cursor, path::PathBuf};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use home::home_dir;
+use skim::prelude::*;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -17,7 +19,7 @@ enum TCtrlCommand {
     #[command(about = "Prints true or false to stdout.")]
     InTmux,
     #[command(about = "Opens a project, using a provided path.")]
-    Open { path: PathBuf },
+    Open { path: Option<PathBuf> },
 }
 
 fn main() -> Result<()> {
@@ -35,11 +37,48 @@ impl TCtrlCommand {
                 let in_tmux = core::in_tmux();
                 println!("{}", in_tmux);
                 Ok(())
-            },
+            }
             TCtrlCommand::Open { path } => {
-                core::open(path)?;
+                match path {
+                    Some(path) => core::open(path)?,
+                    None => {
+                        let path = prompt_for_path()?;
+                        println!("{}", path.display());
+                        core::open(&path)?
+                    }
+                };
+
                 Ok(())
-            },
+            }
         }
     }
+}
+
+fn prompt_for_path() -> Result<PathBuf> {
+    let options = SkimOptionsBuilder::default()
+        .build()
+        .expect("Failed to create SkimOptionsBuilder");
+
+    let search_folder = home_dir()
+        .ok_or_else(|| anyhow::anyhow!("No home dir"))?
+        .join("Projects");
+    let suggestions = fs::read_dir(search_folder)?
+        .map(|f| fs::read_dir(f.unwrap().path()))
+        .filter_map(|f| f.ok())
+        .flatten()
+        .filter_map(|f| f.ok())
+        .map(|f| f.path().canonicalize())
+        .filter_map(|f| f.ok())
+        .map(|f| f.to_string_lossy().to_string());
+    let suggestions = suggestions.collect::<Vec<_>>().join("\n");
+
+    let item_reader = SkimItemReader::default();
+    let items = item_reader.of_bufread(Cursor::new(suggestions));
+
+    let path =
+        Skim::run_with(&options, Some(items)).ok_or_else(|| anyhow::anyhow!("No path selected"))?;
+    let path = path.selected_items.first().expect("Empty vec from Skim");
+
+    let buf = PathBuf::from(path.output().to_string());
+    Ok(buf)
 }
