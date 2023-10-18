@@ -1,4 +1,4 @@
-use std::process::Command;
+mod core;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -11,30 +11,27 @@ struct Args {
 }
 
 #[derive(Subcommand, Debug)]
-enum TCtrlCommand {}
-
-macro_rules! cmd {
-    ($name:expr, $args:expr) => {
-        Command::new($name).args($args)
-    };
+enum TCtrlCommand {
+    #[command(about = "Prints true or false to stdout.")]
+    InTmux,
 }
 
 fn main() -> Result<()> {
-    let out = cmd!("tmux", &["-V"]).get_stdout()?;
-    println!("tmux version: {}", out);
+    let args = Args::parse();
 
-    let _args = Args::parse();
+    args.command.run()?;
 
     Ok(())
 }
 
-trait Asdf {
-    fn get_stdout(&mut self) -> Result<String>;
-}
-
-impl Asdf for Command {
-    fn get_stdout(&mut self) -> Result<String> {
-        let out = self.output()?;
-        Ok(String::from_utf8_lossy(&out.stdout).to_string())
+impl TCtrlCommand {
+    fn run(&self) -> Result<()> {
+        match self {
+            TCtrlCommand::InTmux => {
+                let in_tmux = core::in_tmux();
+                println!("{}", in_tmux);
+                Ok(())
+            }
+        }
     }
 }
