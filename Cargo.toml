@@ -1,6 +1,6 @@
 [package]
 name = "tctrl"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Control your TMUX sessions in style"
 license = "MIT"
