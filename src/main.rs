@@ -43,7 +43,6 @@ impl TCtrlCommand {
                     Some(path) => core::open(path)?,
                     None => {
                         let path = prompt_for_path()?;
-                        println!("{}", path.display());
                         core::open(&path)?
                     }
                 };
