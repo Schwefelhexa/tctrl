@@ -34,6 +34,9 @@ pub fn open(path: &PathBuf) -> Result<()> {
 
 fn create_session(path: &PathBuf) -> Result<()> {
     let session_name = session_name(path);
+    let path = path
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("Invalid path"))?;
 
     // Create new session
     // IDEA: Have this run in Lua
@@ -42,9 +45,10 @@ fn create_session(path: &PathBuf) -> Result<()> {
             NewSession::new()
                 .session_name(&session_name)
                 .shell_command("zsh -c nvim")
+                .start_directory(path)
                 .detached(),
         )
-        .add_command(NewWindow::new().detached());
+        .add_command(NewWindow::new().detached().start_directory(path));
     let res = cmd.status()?;
     if !res.success() {
         bail!("tmux exited with non-zero status");
