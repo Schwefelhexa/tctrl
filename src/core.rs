@@ -1,7 +1,7 @@
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, process::Command};
 
 use anyhow::{bail, Result};
-use tmux_interface::{AttachSession, HasSession, NewSession, NewWindow, SwitchClient, Tmux};
+use tmux_interface::{AttachSession, HasSession, NewSession, NewWindow, Tmux};
 
 pub fn in_tmux() -> bool {
     env::var("TMUX").is_ok()
@@ -21,7 +21,10 @@ pub fn open(path: &PathBuf) -> Result<()> {
 
     // Attach to session
     if in_tmux() {
-        Tmux::with_command(SwitchClient::new().target_session(&session_name)).output()?;
+        // tmux_interface keeps the old session attached as well for some reason
+        Command::new("tmux")
+            .args(&["switch-client", "-t", session_name.as_str()])
+            .output()?;
     } else {
         Tmux::with_command(AttachSession::new().target_session(&session_name)).output()?;
     }
