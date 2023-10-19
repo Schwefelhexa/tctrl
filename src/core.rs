@@ -7,7 +7,7 @@ pub fn in_tmux() -> bool {
     env::var("TMUX").is_ok()
 }
 
-pub fn open(path: &PathBuf) -> Result<()> {
+pub fn open(path: &PathBuf, client: Option<&str>) -> Result<()> {
     let session_name = session_name(path);
 
     let session_exists = Tmux::with_command(HasSession::new().target_session(&session_name))
@@ -20,11 +20,14 @@ pub fn open(path: &PathBuf) -> Result<()> {
     }
 
     // Attach to session
-    if in_tmux() {
+    if in_tmux() || client.is_some() {
         // tmux_interface keeps the old session attached as well for some reason
-        Command::new("tmux")
-            .args(&["switch-client", "-t", session_name.as_str()])
-            .output()?;
+        let mut args = vec!["switch-client", "-t", session_name.as_str()];
+        if let Some(client) = client {
+            args.push("-c");
+            args.push(client);
+        }
+        Command::new("tmux").args(args).status()?;
     } else {
         Tmux::with_command(AttachSession::new().target_session(&session_name)).output()?;
     }

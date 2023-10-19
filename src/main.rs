@@ -19,7 +19,11 @@ enum TCtrlCommand {
     #[command(about = "Prints true or false to stdout.")]
     InTmux,
     #[command(about = "Opens a project, using a provided path.")]
-    Open { path: Option<PathBuf> },
+    Open {
+        path: Option<PathBuf>,
+        #[arg(short, long, help = "The client to open the project in.")]
+        client: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -38,12 +42,12 @@ impl TCtrlCommand {
                 println!("{}", in_tmux);
                 Ok(())
             }
-            TCtrlCommand::Open { path } => {
+            TCtrlCommand::Open { path, client } => {
                 match path {
-                    Some(path) => core::open(path)?,
+                    Some(path) => core::open(path, client.as_deref())?,
                     None => {
                         let path = prompt_for_path()?;
-                        core::open(&path)?
+                        core::open(&path, client.as_deref())?
                     }
                 };
 
