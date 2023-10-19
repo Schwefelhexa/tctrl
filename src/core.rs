@@ -54,6 +54,11 @@ fn create_session(path: &PathBuf) -> Result<()> {
 }
 
 fn session_name(path: &PathBuf) -> String {
+    // TODO: Configurable
+    if path == &PathBuf::from("~") {
+        return "base".to_owned();
+    }
+
     path.file_name()
         .map(|s| s.to_str())
         .flatten()
