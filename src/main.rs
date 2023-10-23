@@ -1,9 +1,11 @@
 mod core;
+mod config;
 
 use std::{fs, io::Cursor, path::PathBuf};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use config::Config;
 use home::home_dir;
 use skim::prelude::*;
 
@@ -36,6 +38,8 @@ fn main() -> Result<()> {
 
 impl TCtrlCommand {
     fn run(&self) -> Result<()> {
+        let config = Config::load()?;
+
         match self {
             TCtrlCommand::InTmux => {
                 let in_tmux = core::in_tmux();
@@ -44,10 +48,10 @@ impl TCtrlCommand {
             }
             TCtrlCommand::Open { path, client } => {
                 match path {
-                    Some(path) => core::open(path, client.as_deref())?,
+                    Some(path) => core::open(path, client.as_deref(), &config)?,
                     None => {
                         let path = prompt_for_path()?;
-                        core::open(&path, client.as_deref())?
+                        core::open(&path, client.as_deref(), &config)?
                     }
                 };
 
