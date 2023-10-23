@@ -25,6 +25,8 @@ enum TCtrlCommand {
         #[arg(short, long, help = "The client to open the project in.")]
         client: Option<String>,
     },
+    #[command(about = "Print the default configuration.")]
+    PrintDefaultConfig,
 }
 
 fn main() -> Result<()> {
@@ -54,6 +56,10 @@ impl TCtrlCommand {
                     }
                 };
 
+                Ok(())
+            }
+            TCtrlCommand::PrintDefaultConfig => {
+                println!("{}", config::get_default_config());
                 Ok(())
             }
         }

@@ -100,3 +100,7 @@ impl Config {
         Ok(folders)
     }
 }
+
+pub fn get_default_config() -> &'static str {
+    DEFAULT_CONFIG
+}
