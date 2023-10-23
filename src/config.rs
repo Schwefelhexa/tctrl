@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use home::home_dir;
@@ -14,21 +14,46 @@ impl Config {
     pub fn load() -> Result<Config> {
         let lua = Lua::new();
 
-        let path = home_dir()
-            .ok_or_else(|| anyhow!("No homedir found"))?
-            .join(".config/tctrl/config.lua");
-        let source = fs::read_to_string(&path);
-        if let Ok(source) = source {
-            lua.context(|ctx| {
-                ctx.load(DEFAULT_CONFIG).exec()?;
-                ctx.load(&source).exec()?;
+        lua.context(|ctx| {
+            ctx.load(DEFAULT_CONFIG).exec()?;
+            rlua::Result::Ok(())
+        })
+        .map_err(|e| anyhow!("Error loading default configuration:\n{}", e))?;
 
-                rlua::Result::Ok(())
-            })
-            .map_err(|e| anyhow!("Error loading config.lua:\n{}", e))?;
+        let sources = Config::get_sources();
+        for source in sources {
+            let content = fs::read_to_string(&source);
+            if let Ok(content) = content {
+                lua.context(|ctx| {
+                    ctx.load(&content).exec()?;
+                    rlua::Result::Ok(())
+                })
+                .map_err(|e| anyhow!("Error loading configuration from {:?}:\n{}", source, e))?;
+            }
         }
 
         Ok(Config { lua })
+    }
+
+    fn get_sources() -> Vec<PathBuf> {
+        let options = [
+            env::var("XDG_CONFIG_HOME")
+                .ok()
+                .map(|p| PathBuf::from(p).join("tctrl/config.lua"))
+                .or_else(|| home_dir().map(|p| p.join(".config/tctrl/config.lua"))),
+            Some(PathBuf::from("/etc/tctrl/config.lua")),
+        ];
+
+        let mut sources = Vec::new();
+        for option in options.iter() {
+            if let Some(path) = option {
+                if path.exists() {
+                    sources.push(path.clone());
+                }
+            }
+        }
+
+        sources
     }
 }
 
@@ -39,8 +64,7 @@ impl Config {
             .context(|ctx| {
                 let globals = ctx.globals();
 
-                let func: LuaFunction =
-                    globals.get("session_name")?;
+                let func: LuaFunction = globals.get("session_name")?;
 
                 let param = ctx.create_table()?;
                 param.set("path", path.to_string_lossy().to_string())?;
