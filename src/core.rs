@@ -1,7 +1,9 @@
 use std::{env, path::PathBuf, process::Command};
 
 use anyhow::{bail, Result};
-use tmux_interface::{AttachSession, HasSession, NewSession, NewWindow, Tmux};
+use tmux_interface::{
+    AttachSession, HasSession, NewSession, NewWindow, Tmux, TmuxCommands,
+};
 
 use crate::config::Config;
 
@@ -18,7 +20,7 @@ pub fn open(path: &PathBuf, client: Option<&str>, config: &Config) -> Result<()>
         .success();
 
     if !session_exists {
-        create_session(path, &session_name)?;
+        create_session(path, config, &session_name)?;
     }
 
     // Attach to session
@@ -37,22 +39,35 @@ pub fn open(path: &PathBuf, client: Option<&str>, config: &Config) -> Result<()>
     Ok(())
 }
 
-fn create_session(path: &PathBuf, session_name: &str) -> Result<()> {
+fn create_session(path: &PathBuf, config: &Config, session_name: &str) -> Result<()> {
+    let mut commands = TmuxCommands::new();
+    let layout = config.get_layout(path, session_name)?;
+
     let path = path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Invalid path"))?;
 
-    // Create new session
-    // IDEA: Have this run in Lua
-    let cmd = Tmux::new()
-        .add_command(
-            NewSession::new()
-                .session_name(session_name)
-                .shell_command("zsh -c nvim")
+    let (first, rest) = layout.split_first().expect("Empty layout");
+    commands = commands.add_command(
+        NewSession::new()
+            .session_name(session_name)
+            .shell_command(first)
+            .start_directory(path)
+            .detached()
+            .into(),
+    );
+    for cmd in rest {
+        commands = commands.add_command(
+            NewWindow::new()
+                .target_window(session_name)
+                .shell_command(cmd)
+                .detached()
                 .start_directory(path)
-                .detached(),
-        )
-        .add_command(NewWindow::new().target_window(session_name).detached().start_directory(path));
+                .into(),
+        );
+    }
+
+    let cmd = Tmux::with_commands(commands);
     let res = cmd.status()?;
     if !res.success() {
         bail!("tmux exited with non-zero status");
@@ -60,4 +75,3 @@ fn create_session(path: &PathBuf, session_name: &str) -> Result<()> {
 
     Ok(())
 }
-

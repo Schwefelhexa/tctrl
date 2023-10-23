@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use home::home_dir;
@@ -57,6 +57,34 @@ impl Config {
             .unwrap_or_else(|| self.session_name_default(path));
 
         Ok(session_name)
+    }
+
+    pub fn get_layout(&self, path: &PathBuf, session_name: &str) -> Result<Vec<String>> {
+        let layouts = self.lua.context(|ctx| {
+            let globals = ctx.globals();
+
+            let func = globals.get("get_layout");
+            let func: LuaFunction = match func {
+                Ok(res) => res,
+                Err(rlua::Error::FromLuaConversionError { from: "nil", .. }) => {
+                    let shell = env::var("SHELL").unwrap_or_else(|_| "zsh".to_owned());
+                    return rlua::Result::Ok(vec![shell]);
+                }
+                Err(e) => return rlua::Result::Err(e),
+            };
+
+            let param = ctx.create_table()?;
+            param.set("path", path.to_string_lossy().to_string())?;
+            param.set(
+                "filename",
+                path.file_name().unwrap().to_string_lossy().to_string(),
+            )?;
+            param.set("session_name", session_name)?;
+            let res = func.call::<_, Vec<String>>(param)?;
+            Ok(res)
+        })?;
+
+        Ok(layouts)
     }
 
     pub fn list_projects(&self) -> Result<Vec<PathBuf>> {
