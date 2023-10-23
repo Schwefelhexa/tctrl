@@ -80,6 +80,9 @@ fn prompt_for_path() -> Result<PathBuf> {
 
     let path =
         Skim::run_with(&options, Some(items)).ok_or_else(|| anyhow::anyhow!("No path selected"))?;
+    if path.is_abort {
+        return Err(anyhow::anyhow!("Aborted"));
+    }
     let path = path.selected_items.first().expect("Empty vec from Skim");
 
     let buf = PathBuf::from(path.output().to_string());
