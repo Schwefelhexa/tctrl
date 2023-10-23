@@ -1,12 +1,11 @@
-mod core;
 mod config;
+mod core;
 
-use std::{fs, io::Cursor, path::PathBuf};
+use std::{io::Cursor, path::PathBuf};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use config::Config;
-use home::home_dir;
 use skim::prelude::*;
 
 #[derive(Parser, Debug)]
@@ -50,7 +49,7 @@ impl TCtrlCommand {
                 match path {
                     Some(path) => core::open(path, client.as_deref(), &config)?,
                     None => {
-                        let path = prompt_for_path()?;
+                        let path = prompt_for_path(&config)?;
                         core::open(&path, client.as_deref(), &config)?
                     }
                 };
@@ -61,23 +60,17 @@ impl TCtrlCommand {
     }
 }
 
-fn prompt_for_path() -> Result<PathBuf> {
+fn prompt_for_path(config: &Config) -> Result<PathBuf> {
     let options = SkimOptionsBuilder::default()
         .build()
         .expect("Failed to create SkimOptionsBuilder");
 
-    let search_folder = home_dir()
-        .ok_or_else(|| anyhow::anyhow!("No home dir"))?
-        .join("Projects");
-    let suggestions = fs::read_dir(search_folder)?
-        .map(|f| fs::read_dir(f.unwrap().path()))
-        .filter_map(|f| f.ok())
-        .flatten()
-        .filter_map(|f| f.ok())
-        .map(|f| f.path().canonicalize())
-        .filter_map(|f| f.ok())
-        .map(|f| f.to_string_lossy().to_string());
-    let suggestions = suggestions.collect::<Vec<_>>().join("\n");
+    let suggestions = config.list_projects()?;
+    let suggestions = suggestions
+        .iter()
+        .map(|p| p.to_str().unwrap().to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
 
     let item_reader = SkimItemReader::default();
     let items = item_reader.of_bufread(Cursor::new(suggestions));

@@ -59,6 +59,27 @@ impl Config {
         Ok(session_name)
     }
 
+    pub fn list_projects(&self) -> Result<Vec<PathBuf>> {
+        let folders = self
+            .lua
+            .context(|ctx| {
+                let globals = ctx.globals();
+
+                let func: LuaFunction = globals.get("list_projects")?;
+                let res = func.call::<_, Vec<String>>(())?;
+
+                rlua::Result::Ok(res)
+            })
+            .map_err(|e| anyhow!("Error getting session name:\n{}", e))?;
+
+        let folders = folders
+            .into_iter()
+            .map(|s| PathBuf::from(s))
+            .collect::<Vec<_>>();
+
+        Ok(folders)
+    }
+
     fn session_name_default(&self, path: &PathBuf) -> String {
         path.file_name()
             .map(|s| s.to_str())
