@@ -1,8 +1,10 @@
-use std::{env, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use home::home_dir;
 use rlua::prelude::*;
+
+const DEFAULT_CONFIG: &'static str = include_str!("../config.lua");
 
 pub struct Config {
     lua: Lua,
@@ -18,6 +20,7 @@ impl Config {
         let source = fs::read_to_string(&path);
         if let Ok(source) = source {
             lua.context(|ctx| {
+                ctx.load(DEFAULT_CONFIG).exec()?;
                 ctx.load(&source).exec()?;
 
                 rlua::Result::Ok(())
@@ -36,11 +39,8 @@ impl Config {
             .context(|ctx| {
                 let globals = ctx.globals();
 
-                let func: rlua::Result<LuaFunction> = globals.get("session_name");
-                if let Err(_) = func {
-                    return rlua::Result::Ok(None);
-                }
-                let func = func.unwrap();
+                let func: LuaFunction =
+                    globals.get("session_name")?;
 
                 let param = ctx.create_table()?;
                 param.set("path", path.to_string_lossy().to_string())?;
@@ -51,10 +51,9 @@ impl Config {
 
                 let res = func.call::<_, String>(param)?;
 
-                rlua::Result::Ok(Some(res))
+                rlua::Result::Ok(res)
             })
-            .map_err(|e| anyhow!("Error getting session name:\n{}", e))?
-            .unwrap_or_else(|| self.session_name_default(path));
+            .map_err(|e| anyhow!("Error getting session name:\n{}", e))?;
 
         Ok(session_name)
     }
@@ -63,15 +62,7 @@ impl Config {
         let layouts = self.lua.context(|ctx| {
             let globals = ctx.globals();
 
-            let func = globals.get("get_layout");
-            let func: LuaFunction = match func {
-                Ok(res) => res,
-                Err(rlua::Error::FromLuaConversionError { from: "nil", .. }) => {
-                    let shell = env::var("SHELL").unwrap_or_else(|_| "zsh".to_owned());
-                    return rlua::Result::Ok(vec![shell]);
-                }
-                Err(e) => return rlua::Result::Err(e),
-            };
+            let func: LuaFunction = globals.get("get_layout")?;
 
             let param = ctx.create_table()?;
             param.set("path", path.to_string_lossy().to_string())?;
@@ -80,8 +71,9 @@ impl Config {
                 path.file_name().unwrap().to_string_lossy().to_string(),
             )?;
             param.set("session_name", session_name)?;
+
             let res = func.call::<_, Vec<String>>(param)?;
-            Ok(res)
+            rlua::Result::Ok(res)
         })?;
 
         Ok(layouts)
@@ -106,18 +98,5 @@ impl Config {
             .collect::<Vec<_>>();
 
         Ok(folders)
-    }
-
-    fn session_name_default(&self, path: &PathBuf) -> String {
-        path.file_name()
-            .map(|s| s.to_str())
-            .flatten()
-            .map(|s| {
-                s.to_string()
-                    .replace(" ", "_")
-                    .replace(",", "_")
-                    .replace(".", "_")
-            })
-            .unwrap_or("unnamed".to_owned())
     }
 }
