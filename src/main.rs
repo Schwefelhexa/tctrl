@@ -13,6 +13,9 @@ use skim::prelude::*;
 struct Args {
     #[command(subcommand)]
     pub command: TCtrlCommand,
+
+    #[arg(short, long, global = true, help = "A custom configuration file to use. Takes priority over all other config files.")]
+    pub config: Option<PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -22,7 +25,7 @@ enum TCtrlCommand {
     #[command(about = "Opens a project, using a provided path.")]
     Open {
         path: Option<PathBuf>,
-        #[arg(short, long, help = "The client to open the project in.")]
+        #[arg(short = 't', long, help = "The client to open the project in.")]
         client: Option<String>,
     },
     #[command(about = "Print the default configuration.")]
@@ -32,14 +35,14 @@ enum TCtrlCommand {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    args.command.run()?;
+    args.command.run(&args)?;
 
     Ok(())
 }
 
 impl TCtrlCommand {
-    fn run(&self) -> Result<()> {
-        let config = Config::load()?;
+    fn run(&self, global: &Args) -> Result<()> {
+        let config = Config::load(global.config.as_ref())?;
 
         match self {
             TCtrlCommand::InTmux => {

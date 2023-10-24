@@ -11,7 +11,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> Result<Config> {
+    pub fn load(custom_config: Option<&PathBuf>) -> Result<Config> {
         let lua = Lua::new();
 
         lua.context(|ctx| {
@@ -20,7 +20,7 @@ impl Config {
         })
         .map_err(|e| anyhow!("Error loading default configuration:\n{}", e))?;
 
-        let sources = Config::get_sources();
+        let sources = Config::get_sources(custom_config);
         for source in sources {
             let content = fs::read_to_string(&source);
             if let Ok(content) = content {
@@ -35,13 +35,14 @@ impl Config {
         Ok(Config { lua })
     }
 
-    fn get_sources() -> Vec<PathBuf> {
+    fn get_sources(custom_config: Option<&PathBuf>) -> Vec<PathBuf> {
         let options = [
             Some(PathBuf::from("/etc/tctrl/config.lua")),
             env::var("XDG_CONFIG_HOME")
                 .ok()
                 .map(|p| PathBuf::from(p).join("tctrl/config.lua"))
                 .or_else(|| home_dir().map(|p| p.join(".config/tctrl/config.lua"))),
+            custom_config.map(|p| p.to_path_buf()),
         ];
 
         let mut sources = Vec::new();
