@@ -37,11 +37,11 @@ impl Config {
 
     fn get_sources() -> Vec<PathBuf> {
         let options = [
+            Some(PathBuf::from("/etc/tctrl/config.lua")),
             env::var("XDG_CONFIG_HOME")
                 .ok()
                 .map(|p| PathBuf::from(p).join("tctrl/config.lua"))
                 .or_else(|| home_dir().map(|p| p.join(".config/tctrl/config.lua"))),
-            Some(PathBuf::from("/etc/tctrl/config.lua")),
         ];
 
         let mut sources = Vec::new();
