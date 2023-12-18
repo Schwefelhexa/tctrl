@@ -1,9 +1,7 @@
 use std::{env, path::PathBuf, process::Command};
 
 use anyhow::{bail, Result};
-use tmux_interface::{
-    AttachSession, HasSession, NewSession, NewWindow, Tmux, TmuxCommands,
-};
+use tmux_interface::{AttachSession, HasSession, NewSession, NewWindow, Tmux, TmuxCommands};
 
 use crate::config::Config;
 
@@ -11,8 +9,15 @@ pub fn in_tmux() -> bool {
     env::var("TMUX").is_ok()
 }
 
-pub fn open(path: &PathBuf, client: Option<&str>, config: &Config) -> Result<()> {
-    let session_name = config.session_name(path)?;
+pub fn open(
+    path: &PathBuf,
+    client: Option<&str>,
+    name: Option<&str>,
+    config: &Config,
+) -> Result<()> {
+    let session_name = name
+        .map(|n| Ok(n.to_string()))
+        .unwrap_or_else(|| config.session_name(path))?;
 
     let session_exists = Tmux::with_command(HasSession::new().target_session(&session_name))
         .output()?

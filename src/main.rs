@@ -27,6 +27,8 @@ enum TCtrlCommand {
         path: Option<PathBuf>,
         #[arg(short = 't', long, help = "The client to open the project in.")]
         client: Option<String>,
+        #[arg(short, long, help = "The name of the project. If not provided, will call lua config.")]
+        name: Option<String>,
     },
     #[command(about = "Print the default configuration.")]
     PrintDefaultConfig,
@@ -50,12 +52,12 @@ impl TCtrlCommand {
                 println!("{}", in_tmux);
                 Ok(())
             }
-            TCtrlCommand::Open { path, client } => {
+            TCtrlCommand::Open { path, client, name } => {
                 match path {
-                    Some(path) => core::open(path, client.as_deref(), &config)?,
+                    Some(path) => core::open(path, client.as_deref(), name.as_deref(), &config)?,
                     None => {
                         let path = prompt_for_path(&config)?;
-                        core::open(&path, client.as_deref(), &config)?
+                        core::open(&path, client.as_deref(), name.as_deref(), &config)?
                     }
                 };
 
